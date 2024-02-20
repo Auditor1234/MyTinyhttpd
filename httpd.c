@@ -3,11 +3,12 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <strings.h>
-#define __USE_MISC
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <unistd.h>
+
 
 #define ISspace(x) isspace((int)(x))
 #define SERVER_STRING "Server: jdbhttpd/0.1.0\r\n"
@@ -21,7 +22,7 @@ void error_die(const char *sc) {
     exit(1);
 }
 
-int startup(unsigned int *port) {
+int startup(unsigned short *port) {
     int httpd = 0;
     int on = 1;
     struct sockaddr_in name;
@@ -138,9 +139,11 @@ void serve_file(int client, const char *filename) {
         numchars = get_line(client, buf, sizeof(buf));
 
     resource = fopen(filename, "r");
-    if(resource == NULL)
-        error_die(client);
-    else {
+    if(resource == NULL) {
+        char s_client[10];
+        sprintf(s_client, "%d", client);
+        error_die(buf);
+    }else {
         headers(client, filename);
         cat(client, resource);
     }
@@ -208,7 +211,7 @@ void execute_cgi(int client, const char *path,
             sprintf(length_env, "CONTENT_LENGTH=%d", content_length);
             putenv(length_env);
         }
-        execl(path, NULL);
+        execl(path, "", NULL);
         exit(0);
     }else {
         close(cgi_output[1]);
@@ -230,7 +233,7 @@ void execute_cgi(int client, const char *path,
 void accept_request(void *arg) {
     int client = *(int *)arg;
     char buf[1024];
-    size_t numchars;
+    int numchars;
     char method[255];
     char url[255];
     char path[512];
